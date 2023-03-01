@@ -1,6 +1,6 @@
 import http
 from datetime import datetime, timezone, timedelta
-from typing import Union, Optional, Sequence
+from typing import Union, Optional, Sequence, Tuple
 
 import requests
 from bs4 import BeautifulSoup as bs
@@ -54,7 +54,7 @@ class VkAPI():
                 error_code = content['error']['error_code']
                 error_msg = content['error']['error_msg']
                 raise RequestFailed(
-                    f'VK API: method: {method} | params: {params} | code: {error_code} | msg: {error_msg}')
+                        f'VK API: method: {method} | params: {params} | code: {error_code} | msg: {error_msg}')
         else:
             raise RequestFailed('Код ответа: {}'.format(response.status_code))
 
@@ -223,19 +223,11 @@ class VkAPI():
 
         return followers
 
-    def get_subscriptions(self, domain, fields='', sub_type='a'):
+    def get_subscriptions(self, domain: str, fields: Sequence[str]) -> Tuple[
+        Sequence[dict], Sequence[dict], Sequence[dict]]:
+
         """
         Возвращет список подписок пользователя
-
-        https://vk.com/dev/friends.get
-
-        sub_type - тип возвращаемых подписок:
-        u: users
-        g: groups
-        a: (users, groups)
-
-        Подробнее:
-        https://vk.com/dev/users.getSubscriptions
         """
 
         params = {
@@ -243,13 +235,12 @@ class VkAPI():
             'count': 200,
             'extended': 1,
             'offset': 0,
-            'fields': fields
+            'fields': ",".join(fields)
         }
-        method = 'users.getSubscriptions'
 
         subscriptions = []
         while True:
-            response = self._make_request(method, params)
+            response = self._make_request('users.getSubscriptions', params)
             subscriptions.extend(response.get('items', []))
             subscription_count = response.get('count', 0)
 
@@ -257,23 +248,14 @@ class VkAPI():
             if params['offset'] >= subscription_count:
                 break
 
-        groups, users = [], []
+        pages, users = [], []
         for subscription in subscriptions:
-            if subscription.get('type', '') == 'profile':
-                if fields == '':
-                    subscription = subscription['id']
+            if subscription.get('type') == 'profile':
                 users.append(subscription)
             else:
-                if fields == '':
-                    subscription = subscription['id']
-                groups.append(subscription)
+                pages.append(subscription)
 
-        if sub_type == 'u':
-            return users
-        elif sub_type == 'g':
-            return groups
-        elif sub_type == 'a':
-            return (users, groups)
+        return tuple(users), tuple(pages), tuple(subscriptions)
 
     def get_groups(self, domain: str, fields: Sequence[str] = tuple()):
         params = {

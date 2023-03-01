@@ -1,2 +1,0 @@
-DOWNLOAD_DIRECTORY = "backup"
-
