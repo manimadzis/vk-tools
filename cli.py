@@ -67,3 +67,4 @@ def handler(*args, **kwargs):
 @click.argument("user-id")
 def handler(*args, **kwargs):
     lastseen_handler(*args, **kwargs)
+
